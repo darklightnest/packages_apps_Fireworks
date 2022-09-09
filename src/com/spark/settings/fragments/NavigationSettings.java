@@ -41,6 +41,7 @@ import androidx.preference.SwitchPreference;
 
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
 import com.android.settings.R;
+import com.android.internal.util.spark.PackageUtils;
 import com.android.internal.util.spark.SparkUtils;
 import com.android.settings.SettingsPreferenceFragment;
 import com.android.settings.search.BaseSearchIndexProvider;
@@ -60,11 +61,13 @@ public class NavigationSettings extends SettingsPreferenceFragment implements
    private static final String NAVBAR_VISIBILITY = "navbar_visibility";
    private static final String PIXEL_NAV_ANIMATION = "pixel_nav_animation";
    private static final String SYSUI_NAV_BAR_INVERSE = "sysui_nav_bar_inverse";
+   private static final String NAVIGATION_BAR_RECENTS_STYLE = "navbar_recents_style";
 
    private Preference mGestureSystemNavigation;
    private SwitchPreference mNavbarVisibility;
    private SystemSettingSwitchPreference mPixelNavAnimation;
    private SecureSettingSwitchPreference mSysuiNavBarInverse;
+   private ListPreference mNavbarRecentsStyle;
 
    private boolean mIsNavSwitchingMode = false;
    private Handler mHandler;
@@ -99,6 +102,13 @@ public class NavigationSettings extends SettingsPreferenceFragment implements
         mNavbarVisibility.setOnPreferenceChangeListener(this);
 
         mHandler = new Handler();
+        mNavbarRecentsStyle = (ListPreference) findPreference(NAVIGATION_BAR_RECENTS_STYLE);
+        int recentsStyle = Settings.System.getInt(resolver,
+                Settings.System.OMNI_NAVIGATION_BAR_RECENTS, 0);
+
+        mNavbarRecentsStyle.setValue(Integer.toString(recentsStyle));
+        mNavbarRecentsStyle.setSummary(mNavbarRecentsStyle.getEntry());
+        mNavbarRecentsStyle.setOnPreferenceChangeListener(this);
     }
 
     @Override
@@ -120,8 +130,54 @@ public class NavigationSettings extends SettingsPreferenceFragment implements
                 }
 	            }, 1500);
             return true;
+        } else if (preference == mNavbarRecentsStyle) {
+            int value = Integer.valueOf((String) newValue);
+            if (value == 1) {
+                if (!isOmniSwitchInstalled()){
+                    doOmniSwitchUnavail();
+                } else if (!Utils.isOmniSwitchRunning(getActivity())) {
+                    doOmniSwitchConfig();
+                }
+            }
+            int index = mNavbarRecentsStyle.findIndexOfValue((String) newValue);
+            mNavbarRecentsStyle.setSummary(mNavbarRecentsStyle.getEntries()[index]);
+            Settings.System.putInt(getContentResolver(), Settings.System.OMNI_NAVIGATION_BAR_RECENTS, value);
+            return true;
         }
         return false;
+    }
+
+  private void checkForOmniSwitchRecents() {
+        if (!isOmniSwitchInstalled()){
+            doOmniSwitchUnavail();
+        } else if (!Utils.isOmniSwitchRunning(getActivity())) {
+            doOmniSwitchConfig();
+        }
+    }
+
+    private void doOmniSwitchConfig() {
+        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(getActivity());
+        alertDialogBuilder.setTitle(R.string.omniswitch_title);
+        alertDialogBuilder.setMessage(R.string.omniswitch_dialog_running_new)
+            .setPositiveButton(R.string.omniswitch_settings, new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog,int id) {
+                    startActivity(Utils.INTENT_LAUNCH_APP);
+                }
+            });
+        AlertDialog alertDialog = alertDialogBuilder.create();
+        alertDialog.show();
+    }
+
+    private void doOmniSwitchUnavail() {
+        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(getActivity());
+        alertDialogBuilder.setTitle(R.string.omniswitch_title);
+        alertDialogBuilder.setMessage(R.string.omniswitch_dialog_unavail);
+        AlertDialog alertDialog = alertDialogBuilder.create();
+        alertDialog.show();
+    }
+
+    private boolean isOmniSwitchInstalled() {
+        return PackageUtils.isAvailableApp(Utils.APP_PACKAGE_NAME, getActivity());
     }
 
     private void updateBarVisibleAndUpdatePrefs(boolean showing) {
