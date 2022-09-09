@@ -2,12 +2,14 @@ package com.spark.settings.fragments;
 
 import com.android.internal.logging.nano.MetricsProto;
 
+import android.app.AlertDialog;
 import android.os.Bundle;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.UserHandle;
 import android.content.ContentResolver;
+import android.content.DialogInterface;
 import android.content.res.Resources;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
@@ -19,6 +21,7 @@ import androidx.preference.PreferenceFragment;
 import androidx.preference.SwitchPreference;
 import android.provider.Settings;
 import android.content.Context;
+import com.android.internal.util.omni.OmniSwitchConstants;
 import com.android.settings.R;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -87,6 +90,7 @@ public class MiscSettings extends ActionFragment implements
     private static final String FLASHLIGHT_CATEGORY = "flashlight_category";
     private static final String KEY_EDGE_LIGHTING = "pulse_ambient_light";
     private static final String SMART_PIXELS = "smart_pixels";
+    private static final String NAVIGATION_BAR_RECENTS_STYLE = "navbar_recents_style";
 
     // category keys
     private static final String CATEGORY_HWKEY = "hardware_keys";
@@ -129,6 +133,7 @@ public class MiscSettings extends ActionFragment implements
     private SystemSettingSwitchPreference mFlashOnCallIgnoreDND;
     private SystemSettingListPreference mFlashOnCall;
     private SystemSettingMasterSwitchPreference mEdgeLighting;
+    private ListPreference mNavbarRecentsStyle;
 
     private Handler mHandler = new Handler();
 
@@ -200,7 +205,6 @@ public class MiscSettings extends ActionFragment implements
                  com.android.internal.R.bool.config_supportSmartPixels);
            if (!mSmartPixelsSupported)
                  prefSet.removePreference(mSmartPixels);
-        }
 
         final boolean needsNavbar = ActionUtils.hasNavbarByDefault(getActivity());
         final PreferenceCategory hwkeyCat = (PreferenceCategory) prefSet
@@ -302,6 +306,14 @@ public class MiscSettings extends ActionFragment implements
                 KEY_EDGE_LIGHTING, 0, UserHandle.USER_CURRENT) == 1;
         mEdgeLighting.setChecked(enabled);
         mEdgeLighting.setOnPreferenceChangeListener(this);
+
+        mNavbarRecentsStyle = (ListPreference) findPreference(NAVIGATION_BAR_RECENTS_STYLE);
+        int recentsStyle = Settings.System.getInt(resolver,
+                Settings.System.OMNI_NAVIGATION_BAR_RECENTS, 0);
+
+        mNavbarRecentsStyle.setValue(Integer.toString(recentsStyle));
+        mNavbarRecentsStyle.setSummary(mNavbarRecentsStyle.getEntry());
+        mNavbarRecentsStyle.setOnPreferenceChangeListener(this);
     }
 
     @Override
@@ -367,11 +379,55 @@ public class MiscSettings extends ActionFragment implements
             Settings.System.putIntForUser(resolver, KEY_EDGE_LIGHTING,
                     value ? 1 : 0, UserHandle.USER_CURRENT);
             return true;
-        } else {
+        } else if (preference == mNavbarRecentsStyle) {
+            int value = Integer.valueOf((String) newValue);
+            if (value == 1) {
+                if (!isOmniSwitchInstalled()){
+                    doOmniSwitchUnavail();
+                } else if (!Utils.isOmniSwitchRunning(getActivity())) {
+                    doOmniSwitchConfig();
+                }
+            }
+            int index = mNavbarRecentsStyle.findIndexOfValue((String) newValue);
+            mNavbarRecentsStyle.setSummary(mNavbarRecentsStyle.getEntries()[index]);
+            Settings.System.putInt(getContentResolver(), Settings.System.OMNI_NAVIGATION_BAR_RECENTS, value);
+            return true;
+        }
             return false;
+    }
+
+  private void checkForOmniSwitchRecents() {
+        if (!isOmniSwitchInstalled()){
+            doOmniSwitchUnavail();
+        } else if (!Utils.isOmniSwitchRunning(getActivity())) {
+            doOmniSwitchConfig();
         }
     }
 
+    private void doOmniSwitchConfig() {
+        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(getActivity());
+        alertDialogBuilder.setTitle(R.string.omniswitch_title);
+        alertDialogBuilder.setMessage(R.string.omniswitch_dialog_running_new)
+            .setPositiveButton(R.string.omniswitch_settings, new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog,int id) {
+                    startActivity(Utils.INTENT_LAUNCH_APP);
+                }
+            });
+        AlertDialog alertDialog = alertDialogBuilder.create();
+        alertDialog.show();
+    }
+
+    private void doOmniSwitchUnavail() {
+        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(getActivity());
+        alertDialogBuilder.setTitle(R.string.omniswitch_title);
+        alertDialogBuilder.setMessage(R.string.omniswitch_dialog_unavail);
+        AlertDialog alertDialog = alertDialogBuilder.create();
+        alertDialog.show();
+    }
+
+    private boolean isOmniSwitchInstalled() {
+        return PackageUtils.isAvailableApp(Utils.APP_PACKAGE_NAME, getActivity());
+    }
 
     @Override
     public int getMetricsCategory() {
