@@ -135,7 +135,7 @@ public class NavigationSettings extends SettingsPreferenceFragment implements
             if (value == 1) {
                 if (!isOmniSwitchInstalled()){
                     doOmniSwitchUnavail();
-                } else if (!Utils.isOmniSwitchRunning(getActivity())) {
+                } else if (!SparkUtils.isOmniSwitchRunning(getActivity())) {
                     doOmniSwitchConfig();
                 }
             }
@@ -150,7 +150,7 @@ public class NavigationSettings extends SettingsPreferenceFragment implements
   private void checkForOmniSwitchRecents() {
         if (!isOmniSwitchInstalled()){
             doOmniSwitchUnavail();
-        } else if (!Utils.isOmniSwitchRunning(getActivity())) {
+        } else if (!SparkUtils.isOmniSwitchRunning(getActivity())) {
             doOmniSwitchConfig();
         }
     }
@@ -161,7 +161,7 @@ public class NavigationSettings extends SettingsPreferenceFragment implements
         alertDialogBuilder.setMessage(R.string.omniswitch_dialog_running_new)
             .setPositiveButton(R.string.omniswitch_settings, new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog,int id) {
-                    startActivity(Utils.INTENT_LAUNCH_APP);
+                    startActivity(SparkUtils.INTENT_LAUNCH_APP);
                 }
             });
         AlertDialog alertDialog = alertDialogBuilder.create();
@@ -177,7 +177,7 @@ public class NavigationSettings extends SettingsPreferenceFragment implements
     }
 
     private boolean isOmniSwitchInstalled() {
-        return PackageUtils.isAvailableApp(Utils.APP_PACKAGE_NAME, getActivity());
+        return PackageUtils.isAvailableApp(SparkUtils.APP_PACKAGE_NAME, getActivity());
     }
 
     private void updateBarVisibleAndUpdatePrefs(boolean showing) {
