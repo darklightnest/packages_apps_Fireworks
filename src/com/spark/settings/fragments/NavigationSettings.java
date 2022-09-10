@@ -103,7 +103,7 @@ public class NavigationSettings extends SettingsPreferenceFragment implements
 
         mHandler = new Handler();
         mNavbarRecentsStyle = (ListPreference) findPreference(NAVIGATION_BAR_RECENTS_STYLE);
-        int recentsStyle = Settings.System.getInt(getContentResolver,
+        int recentsStyle = Settings.System.getInt(getContentResolver(),
                 Settings.System.OMNI_NAVIGATION_BAR_RECENTS, 0);
 
         mNavbarRecentsStyle.setValue(Integer.toString(recentsStyle));
